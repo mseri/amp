@@ -75,17 +75,16 @@ impl View {
             .get(theme_name)
             .ok_or(format!("Couldn't find \"{}\" theme", theme_name))?;
 
-        let cursor_position = BufferRenderer::new(
+        let mut buffer_renderer = BufferRenderer::new(
             buffer,
             highlights,
             lexeme_mapper,
             scroll_offset,
             &*self.terminal,
             theme,
-            &self.preferences.borrow()
-        ).render()?;
-
-        self.cursor_position = cursor_position;
+            &preferences,
+        );
+        self.cursor_position = buffer_renderer.render()?;
 
         Ok(())
     }
