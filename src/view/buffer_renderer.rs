@@ -29,6 +29,7 @@ pub struct BufferRenderer<'a, 'b> {
     scroll_offset: usize,
     terminal: &'a Terminal,
     theme: &'a Theme,
+    pub wrapped_line_count: usize,
 }
 
 impl<'a, 'b> BufferRenderer<'a, 'b> {
@@ -58,6 +59,7 @@ impl<'a, 'b> BufferRenderer<'a, 'b> {
             scroll_offset: scroll_offset,
             terminal: terminal,
             theme: theme,
+            wrapped_line_count: 0
         }
     }
 
@@ -187,6 +189,7 @@ impl<'a, 'b> BufferRenderer<'a, 'b> {
                 self.terminal.print(&self.screen_position, style, color, &character);
                 self.screen_position.offset += 1;
                 self.buffer_position.offset += 1;
+                self.wrapped_line_count += 1;
             } else if character == '\t' {
                 // Calculate the next tab stop using the tab-aware offset,
                 // *without considering the line number gutter*, and then
@@ -482,5 +485,32 @@ mod tests {
         ).render().unwrap();
 
         assert_eq!(terminal.data(), " 1  mapped");
+    }
+
+    #[test]
+    fn render_tracks_wrapped_line_count() {
+        // Set up a workspace and buffer; the workspace will
+        // handle setting up the buffer's syntax definition.
+        let mut workspace = Workspace::new(Path::new(".")).unwrap();
+        let mut buffer = Buffer::new();
+        buffer.insert("wrapped\nnon\nwrapped");
+        workspace.add_buffer(buffer);
+
+        let mut terminal = TestTerminal::new();
+        let theme_set = ThemeSet::load_defaults();
+        let preferences = Preferences::new(None);
+
+        let mut renderer = BufferRenderer::new(
+            workspace.current_buffer().unwrap(),
+            None,
+            None,
+            0,
+            &mut terminal,
+            &theme_set.themes["base16-ocean.dark"],
+            &preferences
+        );
+        renderer.render().unwrap();
+
+        assert_eq!(renderer.wrapped_line_count, 2);
     }
 }
