@@ -8,6 +8,7 @@ use view::terminal::Terminal;
 pub struct ScrollableRegion {
     terminal: Arc<Terminal>,
     line_offset: usize,
+    wrapped_line_count: usize,
 }
 
 #[derive(PartialEq, Debug)]
@@ -22,6 +23,7 @@ impl ScrollableRegion {
         ScrollableRegion {
             terminal: terminal,
             line_offset: 0,
+            wrapped_line_count: 0,
         }
     }
     // Determines the visible lines based on the current line offset and height.
@@ -83,7 +85,14 @@ impl ScrollableRegion {
     /// Scrollable regions occupy one line short of the full
     /// terminal height, which is reserved for the status line.
     pub fn height(&self) -> usize {
-        self.terminal.height() - 1
+        self.terminal
+            .height()
+            .checked_sub(self.wrapped_line_count + 1)
+            .unwrap_or(0)
+    }
+
+    pub fn set_wrapped_line_count(&mut self, count: usize) {
+        self.wrapped_line_count = count
     }
 }
 
@@ -91,6 +100,7 @@ impl ScrollableRegion {
 mod tests {
     use std::sync::Arc;
     use super::{ScrollableRegion, Visibility};
+    use view::terminal::Terminal;
     use view::terminal::test_terminal::TestTerminal;
     use scribe::buffer::LineRange;
 
@@ -201,5 +211,30 @@ mod tests {
         let mut region = ScrollableRegion::new(terminal);
         region.scroll_up(5);
         assert_eq!(region.visible_range(), LineRange::new(0, 9));
+    }
+
+    #[test]
+    fn height_is_always_at_least_one_less_than_terminal_height() {
+        let terminal = Arc::new(TestTerminal::new());
+        let region = ScrollableRegion::new(terminal.clone());
+        assert_eq!(region.height(), terminal.height() - 1);
+    }
+
+    #[test]
+    fn height_deducts_wrapped_line_count_from_terminal_height() {
+        let wrapped_line_count = 4;
+        let terminal = Arc::new(TestTerminal::new());
+        let mut region = ScrollableRegion::new(terminal.clone());
+        region.set_wrapped_line_count(wrapped_line_count);
+        assert_eq!(region.height(), terminal.height() - 1 - wrapped_line_count);
+    }
+
+    #[test]
+    fn height_uses_checked_arithmetic_to_avoid_overflow() {
+        let wrapped_line_count = 12;
+        let terminal = Arc::new(TestTerminal::new());
+        let mut region = ScrollableRegion::new(terminal.clone());
+        region.set_wrapped_line_count(wrapped_line_count);
+        assert_eq!(region.height(), 0);
     }
 }
