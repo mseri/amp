@@ -29,7 +29,9 @@ pub fn copy_remote_url(app: &mut Application) -> Result {
         let regex = Regex::new(r"^git@github.com:(.*).git$").chain_err(|| {
             "Failed to build repo regex"
         })?;
-        let gh_path = regex.captures(url).and_then(|c| c.at(1)).ok_or(
+        let gh_path = regex.captures(url)
+            .and_then(|c| c.get(1).map(|m| m.as_str().clone()))
+            .ok_or(
           "Failed to capture remote repo path"
         )?;
         let repo_path = repo.workdir().ok_or("No path found for the repository")?;
@@ -40,7 +42,7 @@ pub fn copy_remote_url(app: &mut Application) -> Result {
         let status = repo.status_file(relative_path).chain_err(|| {
             "Couldn't get status info for the specified path"
         })?;
-        if status.contains(git2::STATUS_WT_NEW) || status.contains(git2::STATUS_INDEX_NEW) {
+        if status.contains(git2::Status::WT_NEW) || status.contains(git2::Status::INDEX_NEW) {
             bail!("The provided path doesn't exist in the repository");
         }
 

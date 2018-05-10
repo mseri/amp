@@ -3,6 +3,7 @@ extern crate syntex_syntax as syntax;
 use std::env;
 use std::fs::File;
 use std::io::Write;
+use syntax::codemap::FilePathMapping;
 use syntax::parse::{parse_crate_from_file, ParseSess};
 use syntax::ast::{ItemKind, Visibility};
 
@@ -26,7 +27,8 @@ fn generate_commands() {
         .expect("Failed to write command hash init");
 
     // Parse the crate and get a reference to the command module.
-    let session = ParseSess::new();
+    let fpm = FilePathMapping::empty();
+    let session = ParseSess::new(fpm);
     let parsed_crate =
         parse_crate_from_file(&current_dir.join("src/lib.rs"), &session)
         .expect("Couldn't parse amp crate");
